@@ -1,2 +1,38 @@
 # Octavim
-Make it possible to control Octave through Vim
+
+This plugin makes it possible to control Octave through Vim. It has two main features:
+
+- It tries to understand cell blocks (%% in Matlab), allowing to navigate between them.
+- It allows to run the selected text, the current cell or the entire file.
+
+## Using
+
+Open a .m file on Vim and open Octave (personally I prefer to position their windows side by side).
+To navigate between cell blocks (if any), press this while in normal mode:
+- `ctrl+j`: jumps to the next cell
+- `ctrl+k`: jumps to the previous cell
+ 
+To run some code, press:
+- `ctrl+return`: runs the current cell (works in normal and insert mode)
+- `f9`: runs the selected text (in visual mode)
+- `f5`: runs the entire file
+
+## How does it work
+
+Although the plugin code is written in Vim Script, it relies on a library in C (included in the plugin). The plugin calls the library, passing the text to be run. The library then activates Octave window, using Windows API, and send the text simulating a Ctrl+C/Ctrl+V. It tries to save/restore the current text on the clipboard.
+
+## Installation instructions (using [NeoBundle](https://github.com/Shougo/neobundle.vim))
+
+Put this on your vimrc
+```
+NeoBundle 'rafaelgm/Octavim'
+```
+
+After the plugin is installed, it's time to build the helper library:
+- Open Octave
+- Set the current folder to `[Your home folder]\.vim\bundle\Octavim\tools`
+- Run `build` 
+
+It will call `gcc` (assuming Octave has it) and compile the DLL.
+
+**Author's note:** I've created this as a personal plugin to control Octave through Vim, but decided to share it's code. I didn't have much time to spend on this project, so the code is far from perfect and optimal (tried my best given the time I had), but it works for me. Also, the code is targeted to work on Windows, using gVim 7.4 (32 bits) and Octave 4.0.0 (64-bits here). I intend to port it to Linux (Ubuntu) in a near future.
