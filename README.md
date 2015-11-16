@@ -19,9 +19,9 @@ To run some code, press:
 
 `NOTE:` I strongly recommend to keep only the command window open on Octave, or else there is a chance your commands will be sent to somewhere else (like the Octave editor, if it's open).
 
-## How does it work
+## How it works
 
-Although the plugin code is written in Vim Script, it relies on a library in C (included in the plugin). The plugin calls the library, passing the text to be run. The library then activates Octave window, using Windows API, and send the text simulating a Ctrl+C/Ctrl+V. It tries to save/restore the current text on the clipboard.
+Although the plugin code is written in Vim Script (obviously), it relies on a C library (source is included in the plugin). The plugin calls the library, passing the text to be run. The library then activates Octave window, using Windows API, and send the text simulating a Ctrl+C/Ctrl+V. It tries to save/restore the current text on the clipboard.
 
 ## Installation instructions (using [NeoBundle](https://github.com/Shougo/neobundle.vim))
 
@@ -40,4 +40,4 @@ It will call `gcc` (assuming Octave has it) and compile the DLL.
 ### Author's note
 I've created this as a personal plugin to control Octave through Vim, but decided to share it's code. First I found [vim-matlab-behave](https://github.com/elmanuelito/vim-matlab-behave), but that only works on Linux. At first, I decided I would port it to Windows, but in the end I wrote Octavim from scratch, also as an excuse to learn Vim Script. :)
 
-I didn't have much time to spend on this project, so the code is far from perfect and optimal (tried my best given the time I had), but it works for me. Also, the code is targeted to work on Windows, using gVim 7.4 (32 bits) and Octave 4.0.0 (64-bits here), using the new GUI. I intend to port it to Linux (Ubuntu) in a near future.
+I didn't have much time to spend on this project, so the code is **far from perfect and optimal** (did my best given the time I had), but it works for me. Also, the code is targeted to work on Windows, using gVim 7.4 (32 bits) and Octave 4.0.0 (64-bits here), using the new GUI. I intend to port it to Linux (Ubuntu) in a near future.
