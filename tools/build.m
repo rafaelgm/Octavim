@@ -2,5 +2,5 @@
 % Author.: Rafael Monteiro
 
 disp('Building OctaveHelper.dll...');
-system('gcc OctaveHelper.c -m32 -shared -o OctaveHelper.dll')
+system('gcc OctaveHelper.c -m32 -shared -o OctaveHelper.dll');
 disp('Finished!');

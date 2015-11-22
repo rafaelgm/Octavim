@@ -10,13 +10,13 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 #define IS_SPACE (*in == ' ' || *in == '\t')
-#define IS_EOLN (*in == 0 || *in == '\n')
-#define IS_CHAR (*in >= 'a' && *in <= 'z')
+#define IS_EOLN  (*in == 0   || *in == '\n')
+#define IS_CHAR  (*in >= 'a' && *in <= 'z')
 #define IS_DIGIT (*in >= '0' && *in <= '9')
 #define IS_ALPHA (IS_DIGIT || IS_CHAR || *in == '_')
 
 #define SKIP_SPACES while (IS_SPACE) in++;
-#define SKIP_LINE while (!IS_EOLN) in++;
+#define SKIP_LINE   while (!IS_EOLN) in++;
 
 #define BEGIN         1
 #define END           3
@@ -95,6 +95,16 @@ void removeEvent(struct Event *event)
 
 void FindEvents()
 {
+    #define MAX_BEGINS 6
+    #define MAX_BEGIN_SIZE 9
+    static const char begins[MAX_BEGINS][MAX_BEGIN_SIZE] = {
+        "for", "function", "if", "switch", "try", "while"};
+
+    #define MAX_MIDDLES 5
+    #define MAX_MIDDLE_SIZE 10
+    static const char middles[MAX_MIDDLES][MAX_MIDDLE_SIZE] = {
+        "case", "catch", "else", "elseif", "otherwise"};
+
     addEvent(BEGIN);
     last->row = 0;
 
@@ -116,21 +126,12 @@ void FindEvents()
 
             char bkp = *in;
             *in = '\0';
-            if (!strcmp(start, "if")        ||
-                !strcmp(start, "while")     ||
-                !strcmp(start, "for")       ||
-                !strcmp(start, "switch")    ||
-                !strcmp(start, "try")       ||
-                !strcmp(start, "function"))
+            if (bsearch(start, begins, MAX_BEGINS, MAX_BEGIN_SIZE, (int(*)(const void*,const void*)) strcmp))
             {
                 addEvent(BEGIN);
             }
             else
-            if (!strcmp(start, "else")      ||
-                !strcmp(start, "elseif")    ||
-                !strcmp(start, "case")      ||
-                !strcmp(start, "otherwise") ||
-                !strcmp(start, "catch"))
+            if (bsearch(start, middles, MAX_MIDDLES, MAX_MIDDLE_SIZE, (int(*)(const void*,const void*)) strcmp))
             {
                 addEvent(END);
                 addEvent(BEGIN);
@@ -147,16 +148,15 @@ void FindEvents()
         // Skip the rest of the line
         SKIP_LINE;
 
-        if (IS_EOLN)
-        {
-            row++;
+        row++;
+        if (!*in)
+            break;
+        else
             in++;
-        }
     }
     addEvent(END);
 }
 
-int qtd = 0;
 void RemoveEmptyBlocks()
 {
     // Start on first->next to prevent removing the first dummy BEGIN event
@@ -190,7 +190,14 @@ void RemoveEmptyBlocks()
             // Let's destroy the pair, if necessary.
             if (destroy)
             {
-                qtd++;
+                // Adjust nesting levels
+                struct Event *aux = begin->next;
+                while (aux != end)
+                {
+                    aux->nestingLevel--;
+                    aux = aux->next;
+                }
+                
                 struct Event *next = begin->next;
                 if (begin != first)
                     removeEvent(begin);
@@ -198,7 +205,7 @@ void RemoveEmptyBlocks()
 
                 if (end != last)
                     removeEvent(end);
-                //tryAgain = 0;
+
                 continue;
             }                
         }
@@ -218,17 +225,21 @@ struct Event *findEvent(int cursorRow)
     return current;
 }
 
-char * GetCell()
+char *GetCell()
 {
     // Get the current row (first integer on the string).
     int currentRow;
-    in += sscanf(in, "%d", &currentRow);
-    
+
+    int bytesRead;
+    sscanf(in, "%d%n", &currentRow, &bytesRead);
+    in += bytesRead + 1; // +1 is for \n
+
     // Find events, parsing the source.
     FindEvents();
     
     if (hasAnyCells)
     {
+    
         // Remove blocks without cell division inside
         RemoveEmptyBlocks();
         
@@ -271,8 +282,8 @@ char * GetCell()
         if (prevBlock < 0)
             prevBlock = 0;
 
-        sprintf(out, "let s:block = {'prev':%d,'start':%d,'end':%d,'startExt':%d,'endExt':%d,'z':%d}",
-            prevBlock, blockStart, blockEnd, blockStartExt, blockEndExt, qtd);
+        sprintf(out, "let s:block = {'prev':%d,'start':%d,'end':%d,'startExt':%d,'endExt':%d}",
+            prevBlock, blockStart, blockEnd, blockStartExt, blockEndExt);
     }
     else
     {
@@ -303,9 +314,10 @@ HWND getOctaveWindow(char *octaveWindowName)
     return NULL;
 }
 
-char* getClipboard()
+char *getClipboard()
 {
     if (!OpenClipboard(NULL)) return NULL;
+
     char *data = NULL;
     char *handle = (char*) GetClipboardData(CF_TEXT);
     if (handle)
@@ -317,9 +329,9 @@ char* getClipboard()
     return data;
 }
 
-void setClipboard(char *data)
+int setClipboard(char *data)
 {
-    if (!OpenClipboard(NULL)) return;
+    if (!OpenClipboard(NULL)) return 0;
     
     HGLOBAL buffer;
 
@@ -329,6 +341,8 @@ void setClipboard(char *data)
     GlobalUnlock(buffer);
     SetClipboardData(CF_TEXT, buffer);
     CloseClipboard();
+    
+    return 1;
 }
 
 void Run()
@@ -339,49 +353,65 @@ void Run()
     SKIP_SPACES;
     int bytesRead;
     sscanf(in, "%[^\n]%n", octaveWindowName, &bytesRead);
-    in += (bytesRead + 1);
+    in += bytesRead + 1; // +1 is for \n
 
     sscanf(in, "%[^\0]", runCommand);
 
     // Find Octave window
     HWND octaveWindow = getOctaveWindow(octaveWindowName);
-    if (!octaveWindow) return;
+    if (!octaveWindow)
+    {
+        sprintf(output, "echo 'Octavim: Octave window not found. Is Octave running?'");
+        return;
+    }
     
     // Save current focused window (we will return the focus to it later)
     HWND currentWindow = GetForegroundWindow();
     
+    // Save clipboard contents.
+    char *oldClipboard = getClipboard();
+    if (!oldClipboard)
+    {
+        sprintf(output, "echo 'Octavim: could not get current clipboard contents!'");
+        return;
+    }
+    
+    // Change clipboard contents to the run command call.
+    if (!setClipboard(runCommand))
+    {
+        sprintf(output, "echo 'Octavim: could not set clipboard contents!'");
+        return;
+    }
+
     // Bring Octave windows to Focus
     SetForegroundWindow(octaveWindow);
 
-    // Save clipboard contents.
-    char *oldClipboard = getClipboard();
-    
-    // Change clipboard contents to the run command call.
-    setClipboard(runCommand);
-
     // Send CTRL+V to paste the run command and press ENTER
-    keybd_event(VK_CONTROL, MapVirtualKey(VK_CONTROL, 0), 0, 0);
-    keybd_event('V', MapVirtualKey('V', 0), 0, 0);
-    keybd_event('V', MapVirtualKey('V', 0), KEYEVENTF_KEYUP, 0);
-    //keybd_event(VK_CONTROL, MapVirtualKey(VK_CONTROL, 0), KEYEVENTF_KEYUP, 0);
+    int controlPressed = GetAsyncKeyState(VK_CONTROL);
+    if (controlPressed)
+        keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, 0);
+    keybd_event(VK_CONTROL, 0, 0, 0);
+    keybd_event('V', 0, 0, 0);
+    keybd_event('V', 0, KEYEVENTF_KEYUP, 0);
+    keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, 0);
+    if (controlPressed)
+        keybd_event(VK_CONTROL, 0, 0, 0);
 
     // Give Octave some time to process the request
-    //Sleep(100);
+    Sleep(200);
 
     // Restore old clibboard contents.
     setClipboard(oldClipboard);
 
     // Let's return the focus to VIM
     SetForegroundWindow(currentWindow);
-    
-    free(runCommand);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Main function
 ////////////////////////////////////////////////////////////////////////////////
 
-char * OctaveHelper(char *input)
+char *OctaveHelper(char *input)
 {
     // Initialize return variable.
     out[0] = 0;
@@ -390,7 +420,9 @@ char * OctaveHelper(char *input)
     in = input;
     
     int action;
-    in += sscanf(in, "%d\n", &action);
+    int bytesRead;
+    sscanf(in, "%d%n", &action, &bytesRead);
+    in += bytesRead + 1; // +1 is \n
 
     if (action == 1)
         GetCell();

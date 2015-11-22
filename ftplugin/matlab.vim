@@ -1,7 +1,6 @@
 " Site...: https://github.com/rafaelgm/Octavim
 " Author.: Rafael Monteiro
 
-let s:firstRun = 1
 let s:octaveWindow = "Octave"
 let s:pathToOctaveHelper = expand('<sfile>:p:h:h') . '\tools\OctaveHelper.dll'
 
@@ -17,7 +16,7 @@ endfunction
 
 function! GetCells()
     " '1' is the signal to call GetCells in the DLL
-    call CallOctaveHelper('1 ' . line('.') . " ". join(getline(1, line('$')), "\n"))
+    call CallOctaveHelper("1\n" . line('.') . "\n" . join(getline(1, line('$')), "\n"))
 endfunction
 
 function! GoToPreviousCell()
@@ -33,14 +32,9 @@ function! GoToNextCell()
 endfunction
 
 function! HighlightCell()
-    if s:firstRun == 0
-        exec 'syntax clear octaveCell'
-    endif
-    let s:firstRun = 0
-
     call GetCells()
 
-    highlight octaveCell guibg=#2A2520
+    highlight octaveCell guibg=darkred
     if s:block != {}
         exec 'match octaveCell /\%>' . (max([s:block.startExt, line('w0')]) - 1) . 'l\%<' . s:block.endExt . 'l/'
     else
@@ -50,7 +44,7 @@ endfunction
 
 function! Run(cmd)
     " '2' is the signal to call Run in the DLL
-    call CallOctaveHelper('2 ' . s:octaveWindow . "\n" . join(a:cmd, "\n") . "\n")
+    call CallOctaveHelper("2\n" . s:octaveWindow . "\n" . join(a:cmd, "\n") . "\n")
 endfunction
 
 function! RunCell()
@@ -60,9 +54,7 @@ function! RunCell()
 endfunction
 
 function! RunFile()
-    if s:block != {}
-        call Run(getline(1, line('$')))
-    endif
+    call Run(getline(1, line('$')))
 endfunction
 
 " Credits: http://stackoverflow.com/a/6271254
