@@ -19,6 +19,10 @@ To run some code, press:
 
 `NOTE:` I strongly recommend to keep only the command window open on Octave, or else there is a chance your commands will be sent to somewhere else (like the Octave editor, if it's open).
 
+### See it in action
+
+![](https://cloud.githubusercontent.com/assets/6760593/11398926/028dd9a6-936b-11e5-8a8c-89f43eab0826.gif)
+
 ## How it works
 
 Although the plugin code is written in Vim Script (obviously), it relies on a C library (source is included in the plugin). The plugin calls the library, passing the text to be run. The library then activates Octave window, using Windows API, and send the text simulating a Ctrl+C/Ctrl+V. It tries to save/restore the current text on the clipboard.
